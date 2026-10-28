@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permainan Kata Ganti Nama Diri - Kotak Misteri Cerita</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Fredoka & Lexend for child-friendly typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Lexend:wght@400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            purple: '#6C5CE7',
+                            pink: '#FD79A8',
+                            yellow: '#FDCB6E',
+                            green: '#00B894',
+                            blue: '#0984E3',
+                            orange: '#E17055'
+                        }
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        lexend: ['Lexend', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* Dwell Ring SVG animation */
+        .dwell-circle {
+            transition: stroke-dashoffset 0.05s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Custom Box Shake Animation */
+        @keyframes boxShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-4px, 0) rotate(-6deg); }
+            40% { transform: translate(4px, 0) rotate(6deg); }
+            60% { transform: translate(-4px, 0) rotate(-4deg); }
+            80% { transform: translate(4px, 0) rotate(4deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .animate-shake {
+            animation: boxShake 0.4s ease-in-out infinite;
+        }
+
+        /* Floating Animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Pulse Highlight */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(253, 203, 110, 0.8); }
+            50% { box-shadow: 0 0 30px rgba(253, 203, 110, 1); }
+        }
+        .pulse-glow {
+            animation: pulseGlow 1.5s infinite;
+        }
+
+        /* Canvas Particle Effects Container */
+        #fxCanvas {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+        }
+
+        /* Custom Scrollbar for High Scores */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(108, 92, 231, 0.6);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex flex-col justify-between relative overflow-hidden select-none">
+
+    <!-- FX Particle Canvas Overlay -->
+    <canvas id="fxCanvas"></canvas>
+
+    <!-- WEBCAM BACKGROUND FEED LAYER -->
+    <div id="webcamContainer" class="fixed inset-0 z-0 hidden opacity-40 transition-opacity duration-500">
+        <video id="webcamVideo" class="w-full h-full object-cover transform -scale-x-100" autoplay playsinline muted></video>
+    </div>
+
+    <!-- BACKGROUND PATTERN / GRADIENT FALLBACK -->
+    <div id="bgGradient" class="fixed inset-0 z-0 bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-800 opacity-90">
+        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+    </div>
+
+    <!-- DWELL CURSOR FEEDBACK (Follows Pointer) -->
+    <div id="dwellCursor" class="fixed pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2 hidden transition-transform duration-75">
+        <svg class="w-16 h-16 drop-shadow-md">
+            <circle cx="32" cy="32" r="26" stroke="rgba(255, 255, 255, 0.4)" stroke-width="6" fill="none" />
+            <circle id="dwellProgressRing" class="dwell-circle" cx="32" cy="32" r="26" stroke="#FDCB6E" stroke-width="6" fill="none" stroke-dasharray="163.36" stroke-dashoffset="163.36" stroke-linecap="round" />
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center text-yellow-300 font-bold text-xs">
+            <i class="fa-solid fa-hand-pointer text-lg text-white drop-shadow"></i>
+        </div>
+    </div>
+
+    <!-- TOP BAR NAVIGATION & SCORE BOARD -->
+    <header class="relative z-10 p-3 md:p-4 bg-slate-900/80 backdrop-blur-md border-b border-white/10 text-white flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-yellow-400 to-orange-500 p-2.5 rounded-2xl shadow-lg transform rotate-3">
+                <i class="fa-solid fa-book-open text-2xl text-slate-900"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300">
+                    Bina Cerita Bahasa Melayu
+                </h1>
+                <p class="text-xs text-slate-300 font-lexend">Kata Ganti Nama Diri • Sekolah Rendah</p>
+            </div>
+        </div>
+
+        <!-- STATS BAR & CONTROLS -->
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <!-- Timer Badge -->
+            <div class="bg-slate-800/90 border border-yellow-500/30 px-3 py-1.5 rounded-xl flex items-center space-x-2 shadow-inner">
+                <i class="fa-solid fa-stopwatch text-yellow-400 text-lg animate-pulse"></i>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-lexend">Masa</div>
+                    <div id="timerDisplay" class="font-mono text-lg font-bold text-yellow-300 leading-none">00:00</div>
+                </div>
+            </div>
+
+            <!-- Score Badge -->
+            <div class="bg-slate-800/90 border border-emerald-500/30 px-3 py-1.5 rounded-xl flex items-center space-x-2 shadow-inner">
+                <i class="fa-solid fa-star text-emerald-400 text-lg"></i>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-lexend">Markah</div>
+                    <div id="scoreDisplay" class="font-mono text-lg font-bold text-emerald-300 leading-none">0</div>
+                </div>
+            </div>
+
+            <!-- Toggle Webcam Button -->
+            <button id="btnWebcam" onclick="toggleWebcam()" title="Togol Latar Webcam" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-white/10 transition-all duration-200 hover:scale-105 active:scale-95">
+                <i class="fa-solid fa-video-slash text-lg" id="webcamIcon"></i>
+            </button>
+
+            <!-- Toggle Sound Button -->
+            <button id="btnSound" onclick="toggleAudio()" title="Togol Bunyi" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-white/10 transition-all duration-200 hover:scale-105 active:scale-95">
+                <i class="fa-solid fa-volume-high text-lg" id="soundIcon"></i>
+            </button>
+
+            <!-- High Scores Button -->
+            <button onclick="openHighScoreModal()" title="Papan Markah Tinggi" class="p-2.5 bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-xl font-bold shadow-md hover:scale-105 active:scale-95 transition-all">
+                <i class="fa-solid fa-trophy text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME AREA -->
+    <main class="relative z-10 flex-1 max-w-6xl w-full mx-auto p-4 flex flex-col justify-between items-center gap-4">
+
+        <!-- STAGE / STORY HEADER INSTRUCTIONS -->
+        <div class="w-full text-center my-1">
+            <div class="inline-flex items-center space-x-2 bg-purple-900/60 border border-purple-400/30 text-purple-200 px-4 py-1.5 rounded-full text-sm font-lexend shadow-lg backdrop-blur-sm">
+                <span id="storyTopicBadge" class="bg-purple-500 text-white font-bold px-2.5 py-0.5 rounded-full text-xs">Peringkat 1</span>
+                <span id="storyTitleDisplay">Cerita: Pengalaman di Dusun Buah-buahan</span>
+            </div>
+            <p id="instructionText" class="text-white text-sm md:text-base mt-2 drop-shadow font-lexend">
+                <i class="fa-solid fa-circle-info text-yellow-300 mr-1"></i> Tunjuk & Tahan kursor (1 Saat) pada Kotak Misteri di bawah untuk membukanya!
+            </p>
+        </div>
+
+        <!-- STORY SLOTS (TARGET DROP AREA 1 to 4) -->
+        <div class="w-full grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 my-2">
+            <!-- Slot 1 -->
+            <div data-slot-index="0" class="story-slot bg-slate-900/60 backdrop-blur-md border-2 border-dashed border-cyan-400/40 hover:border-cyan-400/80 rounded-2xl p-3 min-h-[140px] flex flex-col justify-start items-center transition-all duration-300 relative group shadow-inner">
+                <div class="w-full flex justify-between items-center mb-2 pb-1 border-b border-white/10 text-cyan-300 font-bold text-xs uppercase tracking-wider">
+                    <span><i class="fa-solid fa-1 mr-1"></i> Bahagian 1</span>
+                    <span class="slot-status font-normal text-[10px] text-slate-400">Kosong</span>
+                </div>
+                <div class="slot-content w-full flex-1 flex flex-col items-center justify-center text-center">
+                    <span class="text-slate-500 text-xs italic">Sila letakkan cerita pertama di sini</span>
+                </div>
+            </div>
+
+            <!-- Slot 2 -->
+            <div data-slot-index="1" class="story-slot bg-slate-900/60 backdrop-blur-md border-2 border-dashed border-pink-400/40 hover:border-pink-400/80 rounded-2xl p-3 min-h-[140px] flex flex-col justify-start items-center transition-all duration-300 relative group shadow-inner">
+                <div class="w-full flex justify-between items-center mb-2 pb-1 border-b border-white/10 text-pink-300 font-bold text-xs uppercase tracking-wider">
+                    <span><i class="fa-solid fa-2 mr-1"></i> Bahagian 2</span>
+                    <span class="slot-status font-normal text-[10px] text-slate-400">Kosong</span>
+                </div>
+                <div class="slot-content w-full flex-1 flex flex-col items-center justify-center text-center">
+                    <span class="text-slate-500 text-xs italic">Sila letakkan cerita kedua di sini</span>
+                </div>
+            </div>
+
+            <!-- Slot 3 -->
+            <div data-slot-index="2" class="story-slot bg-slate-900/60 backdrop-blur-md border-2 border-dashed border-yellow-400/40 hover:border-yellow-400/80 rounded-2xl p-3 min-h-[140px] flex flex-col justify-start items-center transition-all duration-300 relative group shadow-inner">
+                <div class="w-full flex justify-between items-center mb-2 pb-1 border-b border-white/10 text-yellow-300 font-bold text-xs uppercase tracking-wider">
+                    <span><i class="fa-solid fa-3 mr-1"></i> Bahagian 3</span>
+                    <span class="slot-status font-normal text-[10px] text-slate-400">Kosong</span>
+                </div>
+                <div class="slot-content w-full flex-1 flex flex-col items-center justify-center text-center">
+                    <span class="text-slate-500 text-xs italic">Sila letakkan cerita ketiga di sini</span>
+                </div>
+            </div>
+
+            <!-- Slot 4 -->
+            <div data-slot-index="3" class="story-slot bg-slate-900/60 backdrop-blur-md border-2 border-dashed border-emerald-400/40 hover:border-emerald-400/80 rounded-2xl p-3 min-h-[140px] flex flex-col justify-start items-center transition-all duration-300 relative group shadow-inner">
+                <div class="w-full flex justify-between items-center mb-2 pb-1 border-b border-white/10 text-emerald-300 font-bold text-xs uppercase tracking-wider">
+                    <span><i class="fa-solid fa-4 mr-1"></i> Bahagian 4</span>
+                    <span class="slot-status font-normal text-[10px] text-slate-400">Kosong</span>
+                </div>
+                <div class="slot-content w-full flex-1 flex flex-col items-center justify-center text-center">
+                    <span class="text-slate-500 text-xs italic">Sila letakkan cerita keempat di sini</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS / CONTROL BAR -->
+        <div class="flex items-center justify-center space-x-3 my-1">
+            <button id="btnCheckAnswer" onclick="checkStorySequence()" class="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-base rounded-xl shadow-lg hover:shadow-emerald-500/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center space-x-2 border border-emerald-300/30">
+                <i class="fa-solid fa-circle-check text-lg"></i>
+                <span>Semak Susunan Cerita</span>
+            </button>
+
+            <button id="btnReset" onclick="resetCurrentStage()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-sm rounded-xl border border-white/10 transition-all">
+                <i class="fa-solid fa-rotate-left mr-1"></i> Semula
+            </button>
+        </div>
+
+        <!-- BOTTOM AREA: 4 MYSTERY BOXES CONTAINER -->
+        <div class="w-full bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-3xl p-4 md:p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-3 px-1">
+                <h3 class="text-white font-bold text-sm md:text-base flex items-center">
+                    <i class="fa-solid fa-gift text-pink-400 mr-2 text-lg"></i> 4 Kotak Misteri Hadiah
+                </h3>
+                <span class="text-xs text-yellow-300/90 font-lexend bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+                    <i class="fa-solid fa-hand-pointer mr-1"></i> Tunjuk & Tahan 1 Saat Pada Kotak
+                </span>
+            </div>
+
+            <!-- Boxes Grid -->
+            <div id="boxesContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 min-h-[160px]">
+                <!-- Dynamic Gift Boxes Injected via JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="relative z-10 py-2 text-center text-xs text-slate-400 bg-slate-950/80 backdrop-blur-md border-t border-white/5 font-lexend">
+        Bahan Bantu Belajar Digital Bahasa Melayu Sekolah Rendah • Mod Dwell Cursor 1 Saat
+    </footer>
+
+    <!-- MODAL: VICTORY / HIGH SCORE SCREEN -->
+    <div id="victoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden transition-opacity duration-300">
+        <div class="bg-gradient-to-b from-slate-900 to-indigo-950 border-2 border-yellow-400/50 rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl transform scale-95 transition-transform duration-300 relative overflow-hidden">
+            <!-- Decorative Light Ray -->
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-yellow-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="w-20 h-20 bg-gradient-to-tr from-yellow-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg transform -rotate-6 border-4 border-slate-900">
+                <i class="fa-solid fa-trophy text-4xl text-slate-900"></i>
+            </div>
+
+            <h2 id="victoryTitle" class="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-pink-300">
+                Tahniah! Syabas!
+            </h2>
+            <p id="victorySubtitle" class="text-sm text-slate-300 mt-1 font-lexend">Anda berjaya menyusun cerita pendek dengan betul!</p>
+
+            <!-- Star Rating Display -->
+            <div id="starContainer" class="flex justify-center space-x-2 my-4 text-3xl text-slate-600">
+                <i class="fa-solid fa-star transition-all duration-300"></i>
+                <i class="fa-solid fa-star transition-all duration-300"></i>
+                <i class="fa-solid fa-star transition-all duration-300"></i>
+            </div>
+
+            <!-- Score Summary Card -->
+            <div class="bg-slate-800/80 border border-white/10 rounded-2xl p-4 my-4 grid grid-cols-2 gap-3 text-left">
+                <div>
+                    <span class="text-xs text-slate-400 block font-lexend">Masa Diambil</span>
+                    <span id="finalTime" class="text-lg font-bold font-mono text-cyan-300">00:45</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-lexend">Bonus Kelajuan</span>
+                    <span id="timeBonus" class="text-lg font-bold font-mono text-yellow-300">+250</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-lexend">Markah Ketepatan</span>
+                    <span id="accuracyScore" class="text-lg font-bold font-mono text-emerald-300">1000</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-lexend">Jumlah Skor</span>
+                    <span id="totalScore" class="text-xl font-extrabold font-mono text-pink-400">1250</span>
+                </div>
+            </div>
+
+            <!-- Name Input for Highscore -->
+            <div class="mb-5">
+                <label for="playerNameInput" class="block text-xs text-slate-300 text-left mb-1 font-lexend">Masukkan Nama Pemain:</label>
+                <input type="text" id="playerNameInput" maxlength="15" placeholder="Nama Murid..." class="w-full bg-slate-900 border border-slate-600 focus:border-yellow-400 rounded-xl px-4 py-2 text-white font-bold text-center focus:outline-none transition-colors">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-3">
+                <button onclick="saveScoreAndNextStage()" class="flex-1 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-900 font-extrabold py-3 rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95">
+                    Peringkat Seterusnya <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: HIGH SCORES BOARD -->
+    <div id="highScoreModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden transition-opacity duration-300">
+        <div class="bg-slate-900 border border-yellow-500/30 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl relative">
+            <button onclick="closeHighScoreModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="flex items-center justify-center space-x-2 text-yellow-400 text-xl font-bold mb-4">
+                <i class="fa-solid fa-trophy"></i>
+                <span>Papan Markah Tinggi</span>
+            </div>
+
+            <div class="max-h-64 overflow-y-auto space-y-2 pr-1" id="highScoreList">
+                <!-- High Score Items Dynamic -->
+            </div>
+
+            <button onclick="closeHighScoreModal()" class="mt-5 w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl border border-white/10">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- AUDIO SYNTHESIZER & GAME LOGIC SCRIPT -->
+    <script>
+        /* ==========================================================================
+           1. DATA SETS - STORIES WITH PERSONAL PRONOUNS (KATA GANTI NAMA DIRI)
+           ========================================================================== */
+        const storyDatabase = [
+            {
+                id: 1,
+                title: "Pengalaman di Dusun Buah-buahan",
+                boxes: [
+                    {
+                        text: "<strong>Saya</strong> dan keluarga bertolak ke kampung datuk pada awal pagi yang ceria.",
+                        pronoun: "Saya",
+                        correctOrder: 1,
+                        color: "from-pink-500 to-rose-600"
+                    },
+                    {
+                        text: "Apabila tiba, <strong>Dia</strong> (Datuk) menyambut ketibaan kami dengan mesra di hadapan rumah.",
+                        pronoun: "Dia",
+                        correctOrder: 2,
+                        color: "from-purple-500 to-indigo-600"
+                    },
+                    {
+                        text: "<strong>Mereka</strong> bersama-sama memetik buah durian dan rambutan yang masak di dusun.",
+                        pronoun: "Mereka",
+                        correctOrder: 3,
+                        color: "from-blue-500 to-cyan-600"
+                    },
+                    {
+                        text: "<strong>Kita</strong> mestilah bersyukur atas rezeki dan keseronokan meluangkan masa bersama.",
+                        pronoun: "Kita",
+                        correctOrder: 4,
+                        color: "from-emerald-500 to-teal-600"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                title: "Pertandingan Melukis Sekolah",
+                boxes: [
+                    {
+                        text: "<strong>Beliau</strong> (Guru Besar) menyampaikan ucapan perasmian Pertandingan Melukis di dewan.",
+                        pronoun: "Beliau",
+                        correctOrder: 1,
+                        color: "from-amber-500 to-orange-600"
+                    },
+                    {
+                        text: "<strong>Saya</strong> menyediakan berus dan warna air dengan berhati-hati sebelum mula melukis.",
+                        pronoun: "Saya",
+                        correctOrder: 2,
+                        color: "from-pink-500 to-rose-600"
+                    },
+                    {
+                        text: "<strong>Kamu</strong> juga boleh menyertai pertandingan ini untuk mengasah bakat seni.",
+                        pronoun: "Kamu",
+                        correctOrder: 3,
+                        color: "from-indigo-500 to-purple-600"
+                    },
+                    {
+                        text: "<strong>Baginda</strong> Raja berkenan untuk menyampaikan hadiah utama kepada para pemenang.",
+                        pronoun: "Baginda",
+                        correctOrder: 4,
+                        color: "from-cyan-500 to-blue-600"
+                    }
+                ]
+            },
+            {
+                id: 3,
+                title: "Gotong-royong Menjaga Kebersihan",
+                boxes: [
+                    {
+                        text: "<strong>Kita</strong> hendaklah sentiasa bekerjasama menjaga kebersihan kawasan perumahan.",
+                        pronoun: "Kita",
+                        correctOrder: 1,
+                        color: "from-emerald-500 to-teal-600"
+                    },
+                    {
+                        text: "<strong>Beliau</strong> (Ketua Kampung) membahagikan tugas membersihkan perparitan kepada penduduk.",
+                        pronoun: "Beliau",
+                        correctOrder: 2,
+                        color: "from-amber-500 to-orange-600"
+                    },
+                    {
+                        text: "<strong>Mereka</strong> mengutip sampah sarap dan mengumpul dedaun kering ke dalam beg plastik.",
+                        pronoun: "Mereka",
+                        correctOrder: 3,
+                        color: "from-blue-500 to-cyan-600"
+                    },
+                    {
+                        text: "<strong>Dia</strong> berasa sangat bangga kerana kawasan kampung kini kelihatan bersih dan indah.",
+                        pronoun: "Dia",
+                        correctOrder: 4,
+                        color: "from-purple-500 to-indigo-600"
+                    }
+                ]
+            }
+        ];
+
+        /* ==========================================================================
+           2. GAME STATE VARIABLES
+           ========================================================================== */
+        let currentStageIndex = 0;
+        let activeStory = null;
+        let openBoxesCount = 0;
+        let slotContents = [null, null, null, null]; // Story parts placed in slots
+        let selectedCardIndex = null; // Card highlighted for placement
+
+        // Timer & Score
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let gameScore = 0;
+        let isAudioMuted = false;
+        let isWebcamActive = false;
+
+        // Dwell Cursor Handling
+        let dwellTarget = null;
+        let dwellTimer = null;
+        let dwellProgress = 0;
+        const DWELL_DURATION = 1000; // 1 second
+        const DWELL_INTERVAL = 20; // update frequency
+        let mouseX = 0, mouseY = 0;
+
+        /* ==========================================================================
+           3. WEB AUDIO API SYNTHESIZER (No External Sound Files)
+           ========================================================================== */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (isAudioMuted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'dwellTick') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400 + (dwellProgress * 400), now);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } 
+            else if (type === 'boxOpen') {
+                // Tada / Fanfare sound
+                const freqs = [261.63, 329.63, 392.00, 523.25];
+                freqs.forEach((f, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + (i * 0.08));
+                    gain.gain.setValueAtTime(0.15, now + (i * 0.08));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.08) + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + (i * 0.08));
+                    osc.stop(now + (i * 0.08) + 0.3);
+                });
+            } 
+            else if (type === 'cardSelect') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } 
+            else if (type === 'correct') {
+                // Happy chord
+                [523.25, 659.25, 783.99].forEach(f => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                });
+            } 
+            else if (type === 'wrong') {
+                // Error buzz
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.setValueAtTime(110, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } 
+            else if (type === 'victory') {
+                // Victory Fanfare
+                const notes = [392.00, 392.00, 392.00, 523.25, 659.25, 783.99];
+                const times = [0, 0.12, 0.24, 0.36, 0.52, 0.7];
+                notes.forEach((f, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + times[i]);
+                    gain.gain.setValueAtTime(0.2, now + times[i]);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + times[i] + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + times[i]);
+                    osc.stop(now + times[i] + 0.35);
+                });
+            }
+        }
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            const soundIcon = document.getElementById('soundIcon');
+            if (isAudioMuted) {
+                soundIcon.className = 'fa-solid fa-volume-xmark text-lg text-red-400';
+            } else {
+                soundIcon.className = 'fa-solid fa-volume-high text-lg text-slate-300';
+                playSound('cardSelect');
+            }
+        }
+
+        /* ==========================================================================
+           4. WEBCAM FEED TOGGLE
+           ========================================================================== */
+        async function toggleWebcam() {
+            const webcamContainer = document.getElementById('webcamContainer');
+            const webcamVideo = document.getElementById('webcamVideo');
+            const webcamIcon = document.getElementById('webcamIcon');
+
+            if (!isWebcamActive) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    webcamVideo.srcObject = stream;
+                    webcamContainer.classList.remove('hidden');
+                    webcamIcon.className = 'fa-solid fa-video text-lg text-emerald-400';
+                    isWebcamActive = true;
+                } catch (err) {
+                    alert('Gagal mengakses webcam. Sila pastikan kebenaran kamera dibenarkan.');
+                }
+            } else {
+                if (webcamVideo.srcObject) {
+                    webcamVideo.srcObject.getTracks().forEach(track => track.stop());
+                }
+                webcamContainer.classList.add('hidden');
+                webcamIcon.className = 'fa-solid fa-video-slash text-lg text-slate-300';
+                isWebcamActive = false;
+            }
+        }
+
+        /* ==========================================================================
+           5. DWELL SELECTION SYSTEM (1 SECOND HOLD / HOVER)
+           ========================================================================== */
+        const dwellCursor = document.getElementById('dwellCursor');
+        const dwellRing = document.getElementById('dwellProgressRing');
+        const circumference = 2 * Math.PI * 26; // 163.36
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            dwellCursor.style.left = `${mouseX}px`;
+            dwellCursor.style.top = `${mouseY}px`;
+            checkDwellHover(e.target);
+        });
+
+        // Touch device support for dwell
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+                dwellCursor.style.left = `${mouseX}px`;
+                dwellCursor.style.top = `${mouseY}px`;
+                const elem = document.elementFromPoint(mouseX, mouseY);
+                if (elem) checkDwellHover(elem);
+            }
+        });
+
+        function checkDwellHover(targetElement) {
+            const interactiveTarget = targetElement.closest('.dwell-interactive');
+
+            if (interactiveTarget) {
+                dwellCursor.classList.remove('hidden');
+                if (dwellTarget !== interactiveTarget) {
+                    resetDwell();
+                    dwellTarget = interactiveTarget;
+                    startDwellTimer();
+                }
+            } else {
+                dwellCursor.classList.add('hidden');
+                resetDwell();
+            }
+        }
+
+        function startDwellTimer() {
+            let elapsed = 0;
+            dwellTimer = setInterval(() => {
+                elapsed += DWELL_INTERVAL;
+                dwellProgress = elapsed / DWELL_DURATION;
+                
+                // Update SVG ring offset
+                const offset = circumference - (dwellProgress * circumference);
+                dwellRing.style.strokeDashoffset = Math.max(0, offset);
+
+                if (elapsed % 200 === 0) {
+                    playSound('dwellTick');
+                }
+
+                if (elapsed >= DWELL_DURATION) {
+                    // Trigger action on dwell completion!
+                    triggerDwellAction(dwellTarget);
+                    resetDwell();
+                }
+            }, DWELL_INTERVAL);
+        }
+
+        function resetDwell() {
+            if (dwellTimer) {
+                clearInterval(dwellTimer);
+                dwellTimer = null;
+            }
+            dwellTarget = null;
+            dwellProgress = 0;
+            dwellRing.style.strokeDashoffset = circumference;
+        }
+
+        function triggerDwellAction(element) {
+            if (!element) return;
+
+            // Check if element is a closed mystery box
+            if (element.classList.contains('mystery-box-closed')) {
+                const boxIndex = parseInt(element.dataset.boxIndex);
+                openMysteryBox(boxIndex, element);
+            }
+            // Check if element is a revealed story card
+            else if (element.classList.contains('revealed-story-card')) {
+                const boxIndex = parseInt(element.dataset.boxIndex);
+                selectStoryCard(boxIndex);
+            }
+            // Check if element is a story slot
+            else if (element.classList.contains('story-slot')) {
+                const slotIndex = parseInt(element.dataset.slotIndex);
+                placeSelectedCardInSlot(slotIndex);
+            }
+        }
+
+        /* ==========================================================================
+           6. GAME CORE LOGIC & FLOW
+           ========================================================================== */
+        function initGame() {
+            activeStory = storyDatabase[currentStageIndex];
+            document.getElementById('storyTopicBadge').innerText = `Peringkat ${currentStageIndex + 1}/${storyDatabase.length}`;
+            document.getElementById('storyTitleDisplay').innerText = `Cerita: ${activeStory.title}`;
+            
+            // Reset states
+            openBoxesCount = 0;
+            slotContents = [null, null, null, null];
+            selectedCardIndex = null;
+
+            renderStorySlots();
+            renderMysteryBoxes();
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerSeconds = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+            const secs = (timerSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${mins}:${secs}`;
+        }
+
+        function renderMysteryBoxes() {
+            const container = document.getElementById('boxesContainer');
+            container.innerHTML = '';
+
+            // Shuffle story boxes for mystery display
+            const shuffledBoxes = [...activeStory.boxes].map((box, originalIndex) => ({
+                ...box,
+                originalIndex
+            })).sort(() => Math.random() - 0.5);
+
+            shuffledBoxes.forEach((box, i) => {
+                const boxWrapper = document.createElement('div');
+                boxWrapper.id = `boxWrapper_${box.originalIndex}`;
+                boxWrapper.className = 'relative flex justify-center items-center h-full min-h-[140px]';
+
+                // Initial Closed Mystery Box HTML
+                boxWrapper.innerHTML = `
+                    <div data-box-index="${box.originalIndex}" 
+                         onclick="handleManualClickBox(${box.originalIndex})"
+                         class="mystery-box-closed dwell-interactive w-full h-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 border-2 border-yellow-300/60 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer shadow-xl transform transition-transform hover:scale-105 active:scale-95 group relative overflow-hidden">
+                        
+                        <!-- Ribbon Effect -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+                            <div class="w-full h-6 bg-yellow-300 transform -rotate-12"></div>
+                            <div class="h-full w-6 bg-yellow-300 transform -rotate-12 absolute"></div>
+                        </div>
+
+                        <!-- Box Gift Icon -->
+                        <div class="text-4xl md:text-5xl text-yellow-300 mb-2 drop-shadow-md group-hover:animate-bounce">
+                            <i class="fa-solid fa-gift"></i>
+                        </div>
+                        <span class="text-white font-extrabold text-sm md:text-base tracking-wide drop-shadow">KOTAK MISTERI ${i + 1}</span>
+                        <span class="text-[10px] text-yellow-200 font-lexend mt-1 bg-black/20 px-2 py-0.5 rounded-full">Tunjuk & Tahan 1S</span>
+                    </div>
+                `;
+                container.appendChild(boxWrapper);
+            });
+        }
+
+        function handleManualClickBox(boxIndex) {
+            initAudio();
+            const boxElem = document.querySelector(`[data-box-index="${boxIndex}"]`);
+            if (boxElem && boxElem.classList.contains('mystery-box-closed')) {
+                openMysteryBox(boxIndex, boxElem);
+            }
+        }
+
+        function openMysteryBox(boxIndex, boxElem) {
+            playSound('boxOpen');
+            
+            // Trigger Shake & Particle Effect
+            boxElem.classList.add('animate-shake');
+
+            // Spawn Particles at Box Position
+            const rect = boxElem.getBoundingClientRect();
+            spawnParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, 30);
+
+            setTimeout(() => {
+                openBoxesCount++;
+                const boxData = activeStory.boxes[boxIndex];
+                const wrapper = document.getElementById(`boxWrapper_${boxIndex}`);
+
+                // Replace box with opened story card
+                wrapper.innerHTML = `
+                    <div data-box-index="${boxIndex}"
+                         onclick="selectStoryCard(${boxIndex})"
+                         class="revealed-story-card dwell-interactive w-full h-full bg-slate-800 border-2 border-purple-400 rounded-2xl p-3 flex flex-col justify-between cursor-pointer shadow-xl hover:border-yellow-400 transition-all transform hover:-translate-y-1 relative group">
+                        
+                        <!-- Pronoun Badge -->
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="bg-gradient-to-r ${boxData.color} text-white font-extrabold text-xs px-2.5 py-0.5 rounded-full shadow">
+                                ${boxData.pronoun}
+                            </span>
+                            <span class="text-[10px] text-slate-400 font-lexend"><i class="fa-solid fa-hand-pointer mr-0.5"></i> Pilih</span>
+                        </div>
+
+                        <!-- Card Story Text -->
+                        <p class="text-slate-200 text-xs md:text-sm font-lexend leading-snug my-1 text-left">
+                            ${boxData.text}
+                        </p>
+
+                        <div class="text-[10px] text-yellow-300 font-lexend text-right mt-1 font-semibold">
+                            Sentuh / Dwell untuk letak
+                        </div>
+                    </div>
+                `;
+
+                // Update instruction text
+                if (openBoxesCount === 4) {
+                    document.getElementById('instructionText').innerHTML = `
+                        <i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> Semua kotak dibuka! Sekarang <strong>tunjuk & tahan pada kad cerita</strong>, kemudian letakkan pada <strong>Bahagian 1 - 4</strong> mengikut urutan.
+                    `;
+                }
+            }, 300);
+        }
+
+        function selectStoryCard(boxIndex) {
+            playSound('cardSelect');
+            selectedCardIndex = boxIndex;
+
+            // Highlight selected card visually
+            document.querySelectorAll('.revealed-story-card').forEach(card => {
+                card.classList.remove('ring-4', 'ring-yellow-400', 'pulse-glow');
+            });
+
+            const selectedCard = document.querySelector(`.revealed-story-card[data-box-index="${boxIndex}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('ring-4', 'ring-yellow-400', 'pulse-glow');
+            }
+
+            // Highlight available slots
+            document.querySelectorAll('.story-slot').forEach(slot => {
+                slot.classList.add('border-yellow-400', 'bg-slate-800/80');
+            });
+        }
+
+        function renderStorySlots() {
+            document.querySelectorAll('.story-slot').forEach((slotElem, slotIndex) => {
+                slotElem.onclick = () => placeSelectedCardInSlot(slotIndex);
+                slotElem.classList.add('dwell-interactive');
+
+                const statusSpan = slotElem.querySelector('.slot-status');
+                const contentDiv = slotElem.querySelector('.slot-content');
+
+                const placedData = slotContents[slotIndex];
+
+                if (placedData !== null) {
+                    statusSpan.innerText = "Diisi";
+                    statusSpan.className = "slot-status font-bold text-[10px] text-emerald-400";
+
+                    contentDiv.innerHTML = `
+                        <div class="w-full h-full bg-slate-800 border border-slate-600 rounded-xl p-2 flex flex-col justify-between text-left relative">
+                            <span class="bg-gradient-to-r ${placedData.color} text-white font-bold text-[10px] px-2 py-0.5 rounded-full self-start mb-1">
+                                ${placedData.pronoun}
+                            </span>
+                            <p class="text-slate-200 text-xs font-lexend leading-tight">
+                                ${placedData.text}
+                            </p>
+                            <button onclick="event.stopPropagation(); removeCardFromSlot(${slotIndex})" class="absolute top-1 right-1 text-slate-400 hover:text-red-400 p-1 text-xs" title="Keluarkan">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    statusSpan.innerText = "Kosong";
+                    statusSpan.className = "slot-status font-normal text-[10px] text-slate-400";
+                    contentDiv.innerHTML = `<span class="text-slate-500 text-xs italic">Sila letakkan cerita di sini</span>`;
+                }
+            });
+        }
+
+        function placeSelectedCardInSlot(slotIndex) {
+            if (selectedCardIndex === null) return;
+
+            initAudio();
+            const cardData = activeStory.boxes[selectedCardIndex];
+
+            // If card was in another slot, clear it
+            const existingSlot = slotContents.indexOf(cardData);
+            if (existingSlot !== -1) {
+                slotContents[existingSlot] = null;
+            }
+
+            slotContents[slotIndex] = cardData;
+
+            // Hide or disable original card element
+            const cardElem = document.querySelector(`.revealed-story-card[data-box-index="${selectedCardIndex}"]`);
+            if (cardElem) {
+                cardElem.style.opacity = '0.3';
+                cardElem.style.pointerEvents = 'none';
+                cardElem.classList.remove('ring-4', 'ring-yellow-400', 'pulse-glow');
+            }
+
+            selectedCardIndex = null;
+            playSound('cardSelect');
+            renderStorySlots();
+        }
+
+        function removeCardFromSlot(slotIndex) {
+            const cardData = slotContents[slotIndex];
+            if (!cardData) return;
+
+            // Re-enable card in original box
+            const originalBoxIndex = activeStory.boxes.indexOf(cardData);
+            const cardElem = document.querySelector(`.revealed-story-card[data-box-index="${originalBoxIndex}"]`);
+            if (cardElem) {
+                cardElem.style.opacity = '1';
+                cardElem.style.pointerEvents = 'auto';
+            }
+
+            slotContents[slotIndex] = null;
+            renderStorySlots();
+            playSound('cardSelect');
+        }
+
+        /* ==========================================================================
+           7. CHECK ANSWER & SCORE CALCULATION
+           ========================================================================== */
+        function checkStorySequence() {
+            initAudio();
+
+            // Check if all 4 slots filled
+            if (slotContents.includes(null)) {
+                playSound('wrong');
+                alert('Sila lengkapkan kesemua 4 bahagian cerita terlebih dahulu!');
+                return;
+            }
+
+            // Check correctness
+            let isCorrect = true;
+            for (let i = 0; i < 4; i++) {
+                if (slotContents[i].correctOrder !== (i + 1)) {
+                    isCorrect = false;
+                    break;
+                }
+            }
+
+            if (isCorrect) {
+                clearInterval(timerInterval);
+                playSound('victory');
+
+                // Calculate Score & Bonus
+                const baseScore = 1000;
+                const timeBonus = Math.max(0, 300 - (timerSeconds * 5));
+                const stageScore = baseScore + timeBonus;
+                gameScore += stageScore;
+
+                document.getElementById('scoreDisplay').innerText = gameScore;
+
+                // Fire Fireworks FX
+                triggerFireworks();
+
+                // Show Victory Modal
+                showVictoryModal(timerSeconds, timeBonus, baseScore, stageScore);
+            } else {
+                playSound('wrong');
+                alert('Susunan cerita belum tepat. Sila semak semula kronologi cerita dan cuba lagi!');
+            }
+        }
+
+        function showVictoryModal(timeSecs, timeBonus, baseScore, totalStageScore) {
+            const mins = Math.floor(timeSecs / 60).toString().padStart(2, '0');
+            const secs = (timeSecs % 60).toString().padStart(2, '0');
+
+            document.getElementById('finalTime').innerText = `${mins}:${secs}`;
+            document.getElementById('timeBonus').innerText = `+${timeBonus}`;
+            document.getElementById('accuracyScore').innerText = `${baseScore}`;
+            document.getElementById('totalScore').innerText = `${totalStageScore}`;
+
+            // Star Rating Calculation
+            const starContainer = document.getElementById('starContainer');
+            let stars = 1;
+            if (timeSecs <= 45) stars = 3;
+            else if (timeSecs <= 75) stars = 2;
+
+            starContainer.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < stars) {
+                    starContainer.innerHTML += `<i class="fa-solid fa-star text-yellow-400 drop-shadow-lg"></i>`;
+                } else {
+                    starContainer.innerHTML += `<i class="fa-solid fa-star text-slate-700"></i>`;
+                }
+            }
+
+            document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        function saveScoreAndNextStage() {
+            const playerName = document.getElementById('playerNameInput').value.trim() || 'Murid Bijak';
+            saveHighScoreToStorage(playerName, gameScore);
+
+            document.getElementById('victoryModal').classList.add('hidden');
+
+            // Advance to next stage or restart loops
+            currentStageIndex = (currentStageIndex + 1) % storyDatabase.length;
+            initGame();
+        }
+
+        function resetCurrentStage() {
+            initGame();
+        }
+
+        /* ==========================================================================
+           8. HIGH SCORE BOARD (LOCALSTORAGE)
+           ========================================================================== */
+        function saveHighScoreToStorage(name, score) {
+            let highScores = JSON.parse(localStorage.getItem('bm_story_highscores') || '[]');
+            highScores.push({ name, score, date: new Date().toLocaleDateString('ms-MY') });
+            highScores.sort((a, b) => b.score - a.score);
+            highScores = highScores.slice(0, 10); // Keep top 10
+            localStorage.setItem('bm_story_highscores', JSON.stringify(highScores));
+        }
+
+        function openHighScoreModal() {
+            initAudio();
+            const listContainer = document.getElementById('highScoreList');
+            let highScores = JSON.parse(localStorage.getItem('bm_story_highscores') || '[]');
+
+            if (highScores.length === 0) {
+                listContainer.innerHTML = `<p class="text-slate-400 text-sm py-4">Belum ada rekod markah tinggi.</p>`;
+            } else {
+                listContainer.innerHTML = highScores.map((hs, index) => `
+                    <div class="flex items-center justify-between bg-slate-800/80 border border-white/5 rounded-xl p-3 text-left">
+                        <div class="flex items-center space-x-3">
+                            <span class="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center ${index === 0 ? 'bg-yellow-400 text-slate-900' : index === 1 ? 'bg-slate-300 text-slate-900' : index === 2 ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300'}">
+                                ${index + 1}
+                            </span>
+                            <div>
+                                <span class="text-white font-bold text-sm block">${hs.name}</span>
+                                <span class="text-[10px] text-slate-400 font-lexend">${hs.date}</span>
+                            </div>
+                        </div>
+                        <span class="text-yellow-400 font-mono font-extrabold text-base">${hs.score} pts</span>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('highScoreModal').classList.remove('hidden');
+        }
+
+        function closeHighScoreModal() {
+            document.getElementById('highScoreModal').classList.add('hidden');
+        }
+
+        /* ==========================================================================
+           9. CANVAS PARTICLE FX ENGINE (CONFETTI / FIREWORKS)
+           ========================================================================== */
+        const canvas = document.getElementById('fxCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function spawnParticles(x, y, count) {
+            const colors = ['#FDCB6E', '#FD79A8', '#6C5CE7', '#00B894', '#0984E3'];
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10 - 2,
+                    size: Math.random() * 6 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    decay: Math.random() * 0.02 + 0.015
+                });
+            }
+        }
+
+        function triggerFireworks() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    spawnParticles(
+                        Math.random() * canvas.width,
+                        Math.random() * (canvas.height * 0.6),
+                        40
+                    );
+                }, i * 250);
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15; // Gravity
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        /* ==========================================================================
+           10. START GAME ON WINDOW LOAD
+           ========================================================================== */
+        window.onload = () => {
+            initGame();
+        };
+    </script>
+</body>
+</html>
